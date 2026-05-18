@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Crystals</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Dodan SweetAlert2 za lepši zaključek igre -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: url('img/ozadje.jpg');
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* TOP BAR */
+        #vmesnik {
+            text-align: center;
+            color: white;
+            font-size: 20px;
+            padding: 10px;
+            background: #333;
+            border-bottom: 2px solid #555;
+        }
+
+        /* MAIN LAYOUT */
+        #main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end; /* canvas desno */
+            padding-right: 60px;
+            gap: 50px;
+        }
+
+        /* LEVI PANEL */
+        #side-info {
+            width: 220px;
+            color: white;
+            font-size: 18px;
+        }
+
+        /* CANVAS */
+        #canvas {
+            display: block;
+            padding: 1px 1px 3px 1px;
+            background: hsl(250, 25%, 12%);
+            border: 4px solid hsl(300, 70%, 55%);
+            box-shadow: 0 0 8px hsl(300, 70%, 55%);
+            cursor: none;
+        }
+
+        #cas-box {
+            background: #c74384;
+            padding: 0 8px;
+            border-radius: 3px;
+            color: white;
+            font-weight: bold;
+        }
+
+        #tocke-box {
+            background: #6a1fb0;
+            padding: 0 8px;
+            border-radius: 3px;
+            color: white;
+            font-weight: bold;
+        }
+		
+		#main {
+			flex: 1;
+			display: flex;
+			align-items: center; 
+			justify-content: flex-start;
+			padding-left: 10%;
+			gap: 10%;
+		}
+
+		#side-info {
+			width: 30%;
+			display: flex;
+			align-items: center; 
+			justify-content: left;
+			padding-left:40px;
+		}
+
+		#vmesnik {
+			background: rgba(40, 40, 40, 0.9);
+			padding:0 10px 50px 10px;
+			border-radius: 12px;
+			color: white;
+			font-size: 20px;
+			text-align: center;
+			width: 500px;
+			box-shadow: 0 0 10px rgba(0,0,0,0.5);
+		}
+		
+		#naslov {
+			color: #b56dff; 
+			font-size: 50px;
+			font-family: "Orbitron", "Segoe UI", sans-serif;
+			text-shadow: 
+				0 0 5px #8A2BE2,
+				0 0 10px #8A2BE2,
+				0 0 20px #b56dff;
+			letter-spacing: 2px;
+		}
+		
+		#n1{
+			font-size: 30px;
+			margin:-20px;
+		}
+
+        /* Stil za nov gumb */
+        #gumb-start {
+            background: #8A2BE2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 22px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 40px;
+            transition: 0.2s;
+        }
+        #gumb-start:hover {
+            background: #b56dff;
+        }
+    </style>
+
+    <script type="application/javascript">
+
+    function drawIt() {
+        var vx = window.innerWidth - 1000;
+        var vy = window.innerHeight - 200;
+        
+        if (vx < 400) vx = 400;
+        if (vy < 300) vy = 300;
+
+        var x = vx / 2;
+        var y = vy - 150;
+        
+        // HITREJE: Povečana hitrost premikanja žogice
+        var dx = 3;
+        var dy = -5;
+        var r = 10;
+
+        var ctx, canvas, WIDTH, HEIGHT, intervalId, timerId;
+
+        var paddlex;
+        var paddleh = 20;
+        var paddlew = 160; // POMANJŠANO: Ploščica je sedaj ožja (prej 250)
+
+        var bricks;
+        var NROWS = 5;
+        var NCOLS = 10;
+        var BRICKWIDTH;
+        var BRICKHEIGHT = 30;
+        var PADDING = 4;
+
+        var start = false;
+        var sekunde = 0;
+        var tocke = 0;
+        var izpisTimer = "00:00";
+
+        function init() {
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+
+            canvas.width = vx;
+            canvas.height = vy;
+
+            WIDTH = canvas.width;
+            HEIGHT = canvas.height;
+
+            BRICKWIDTH = (WIDTH / NCOLS) - PADDING;
+            paddlex = WIDTH / 2 - paddlew / 2;
+
+            sekunde = 0;
+            tocke = 0;
+
+            $("#cas").html("00:00");
+            $("#tocke").html(tocke);
+
+            initbricks();
+            osveziIzgled();
+
+            $(document).mousemove(function(e) {
+                var relativeX = e.pageX - $(canvas).offset().left;
+
+                if (relativeX > paddlew / 2 && relativeX < WIDTH - paddlew / 2) {
+                    paddlex = relativeX - paddlew / 2;
+                } else if (relativeX <= paddlew / 2) {
+                    paddlex = 0;
+                } else {
+                    paddlex = WIDTH - paddlew;
+                }
+                
+                if (!start) {
+                    osveziIzgled();
+                }
+            });
+
+            $("#gumb-start").click(function() {
+                if (start == false) {
+                    start = true;
+                    $(this).hide();
+                    intervalId = setInterval(draw, 5); // HITREJE: Osveževanje spet na 5ms za tekočo hitro igro
+                    timerId = setInterval(posodobiTimer, 1000);
+                }
+            });
+        }
+
+        function posodobiTimer() {
+            if (start == true) {
+                sekunde++;
+
+                var s = sekunde % 60;
+                s = (s > 9) ? s : "0" + s;
+
+                var m = Math.floor(sekunde / 60);
+                m = (m > 9) ? m : "0" + m;
+
+                izpisTimer = m + ":" + s;
+                $("#cas").html(izpisTimer);
+            }
+        }
+
+        // RANDOM BARVE: Funkcija vrača naključne neonske barve
+        function getTargetColor() {
+            var hue = Math.floor(Math.random() * (360 - 180 + 1)) + 180;
+            return "hsl(" + hue + ", 80%, 60%)";
+        }
+
+        function initbricks() {
+            bricks = new Array(NROWS);
+
+            for (var i = 0; i < NROWS; i++) {
+                bricks[i] = new Array(NCOLS);
+
+                for (var j = 0; j < NCOLS; j++) {
+                    bricks[i][j] = { 
+                        status: 1, 
+                        color: getTargetColor(), 
+                        vrednostTočk: 20 // Enakomerne točke za vse naključne opeke
+                    };
+                }
+            }
+        }
+
+        function drawbricks() {
+            for (var i = 0; i < NROWS; i++) {
+                for (var j = 0; j < NCOLS; j++) {
+                    if (bricks[i][j].status == 1) {
+                        ctx.fillStyle = bricks[i][j].color;
+                        ctx.beginPath();
+                        ctx.rect(
+                            j * (BRICKWIDTH + PADDING) + PADDING / 2,
+                            i * (BRICKHEIGHT + PADDING) + PADDING / 2,
+                            BRICKWIDTH,
+                            BRICKHEIGHT
+                        );
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+
+        // SKLADNE BARVE: Žogica in ploščica uporabljata neonske barve, ki pašejo h kristalom
+        function osveziIzgled() {
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+            drawbricks();
+
+            // BALL (Uporablja skladno svetlo roza-vijolično neonsko)
+            ctx.beginPath();
+            ctx.fillStyle = "hsl(310, 95%, 65%)";
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+
+            // PADDLE (Uporablja kristalno magento, ki se sklada s celotno sceno)
+            ctx.beginPath();
+            ctx.fillStyle = "hsl(280, 85%, 55%)";
+            ctx.rect(paddlex, HEIGHT - paddleh, paddlew, paddleh);
+            ctx.fill();
+        }
+
+        function draw() {
+            osveziIzgled();
+
+            var rowheight = BRICKHEIGHT + PADDING;
+            var colwidth = BRICKWIDTH + PADDING;
+
+            var row = Math.floor(y / rowheight);
+            var col = Math.floor(x / colwidth);
+
+            if (
+                y < NROWS * rowheight &&
+                row >= 0 &&
+                col >= 0 &&
+                col < NCOLS &&
+                bricks[row][col] &&
+                bricks[row][col].status == 1
+            ) {
+                dy = -dy;
+                bricks[row][col].status = 0;
+
+                tocke += bricks[row][col].vrednostTočk;
+                $("#tocke").html(tocke);
+            }
+
+            if (x + dx > WIDTH - r || x + dx < r) dx = -dx;
+            if (y + dy < r) dy = -dy;
+
+            else if (y + dy > HEIGHT - r - paddleh) {
+                if (x > paddlex && x < paddlex + paddlew) {
+                    dx = 8 * ((x - (paddlex + paddlew / 2)) / paddlew);
+                    dy = -dy;
+                    y = HEIGHT - r - paddleh - 2;
+                } else if (y + dy > HEIGHT - r) {
+                    start = false;
+                    clearInterval(intervalId);
+                    clearInterval(timerId);
+
+                    // SWEET ALERT 2 za konec igre
+                    Swal.fire({
+                        title: 'KONEC IGRE!',
+                        html: `<b style="color: #6a1fb0; font-size: 22px;">Točke: ${tocke}</b><br><br><b style="color: #c74384; font-size: 22px;">Čas: ${izpisTimer}</b>`,
+                        icon: 'info',
+                        background: '#282828',
+                        color: '#fff',
+                        confirmButtonText: 'Ponovno igraj',
+                        confirmButtonColor: '#8A2BE2',
+                        allowOutsideClick: false
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            location.reload();
+                        }
+                    });
+                }
+            }
+
+            var temp_max_dx = 8;
+            if (Math.abs(dx) > temp_max_dx)
+                dx = (dx > 0) ? temp_max_dx : -temp_max_dx;
+
+            x += dx;
+            y += dy;
+        }
+
+        init();
+    }
+
+    </script>
+</head>
+
+<body onload="drawIt()">
+	<div id="main">
+        <div id="side-info">
+            <div id="vmesnik">
+				<p id="naslov">CRYSTALS</p>
+                <p id="n1">Time:   <span id="cas-box"><span id="cas">00:00</span></span></p>
+                <br><br>
+                <p id="n1">Points:   <span id="tocke-box"><span id="tocke">0</span></span></p>
+                <br><br>
+                <button id="gumb-start">START</button>
+            </div>
+        </div>
+
+        <canvas id="canvas"></canvas>
+    </div>
+</body>
+</html>
